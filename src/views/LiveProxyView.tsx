@@ -159,7 +159,8 @@ export function LiveProxyView() {
     [status?.algorithm],
   );
   const route = ROUTES.find((item) => item.value === selectedRoute) ?? ROUTES[0];
-  const canControl = Boolean(status?.adminControlsAvailable) && !algorithmBusy && !resetBusy;
+  const apiOnline = Boolean(status && !apiError);
+  const canControl = Boolean(status?.adminControlsAvailable) && apiOnline && !algorithmBusy && !resetBusy;
   const successRate = status?.metrics.completedRequests
     ? status.metrics.successfulRequests / status.metrics.completedRequests * 100
     : 100;
@@ -265,9 +266,9 @@ export function LiveProxyView() {
               <span className="chip border-neon-cyan/25 bg-neon-cyan/[0.06] font-mono text-[10px] uppercase tracking-[0.14em] text-neon-cyan">
                 <Globe className="h-3 w-3" /> HTTP data plane
               </span>
-              <span className={clsx('chip font-mono text-[10px] uppercase tracking-[0.12em]', status ? 'border-neon-mint/25 text-neon-mint' : 'border-neon-rose/25 text-neon-rose')}>
-                <span className={clsx('h-1.5 w-1.5 rounded-full', status ? 'bg-neon-mint shadow-[0_0_8px_rgba(52,229,176,.8)]' : 'bg-neon-rose')} />
-                {status ? 'connected' : 'disconnected'}
+              <span className={clsx('chip font-mono text-[10px] uppercase tracking-[0.12em]', apiOnline ? 'border-neon-mint/25 text-neon-mint' : 'border-neon-rose/25 text-neon-rose')}>
+                <span className={clsx('h-1.5 w-1.5 rounded-full', apiOnline ? 'bg-neon-mint shadow-[0_0_8px_rgba(52,229,176,.8)]' : 'bg-neon-rose')} />
+                {apiOnline ? 'connected' : 'disconnected'}
               </span>
             </div>
             <h1 className="font-display text-2xl font-semibold tracking-tight text-white sm:text-[30px]">Live Proxy</h1>
@@ -362,7 +363,7 @@ export function LiveProxyView() {
                   {ROUTES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
                 </select>
               </label>
-              <button type="button" className="btn btn-primary h-[38px] px-4" onClick={() => void sendRequest()} disabled={!status || requestBusy}>
+              <button type="button" className="btn btn-primary h-[38px] px-4" onClick={() => void sendRequest()} disabled={!apiOnline || requestBusy}>
                 {requestBusy ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
                 {requestBusy ? 'Request in flight…' : 'Send real request'}
               </button>
