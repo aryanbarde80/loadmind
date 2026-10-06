@@ -15,6 +15,10 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 5173,
     strictPort: false,
+    proxy: {
+      '/api': { target: process.env.LOADMIND_API_URL || 'http://127.0.0.1:8787', changeOrigin: true },
+      '/proxy': { target: process.env.LOADMIND_API_URL || 'http://127.0.0.1:8787', changeOrigin: true },
+    },
     // Allow the sandboxed preview host (*.e2b.app) and any tunnel host.
     allowedHosts: true,
   },
