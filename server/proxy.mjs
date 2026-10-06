@@ -32,13 +32,17 @@ function percentile(values, fraction) {
 
 function normalizeUpstream(upstream, index) {
   const id = String(upstream.id || `upstream-${index + 1}`);
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(id)) {
+    throw new TypeError(`Upstream id "${id}" must be 1–64 safe header characters.`);
+  }
   const url = new URL(upstream.url);
   if (!['http:', 'https:'].includes(url.protocol)) throw new TypeError(`Upstream ${id} must use HTTP or HTTPS.`);
   if (url.username || url.password) throw new TypeError(`Credentials must not be embedded in the URL for upstream ${id}.`);
+  if (url.search) throw new TypeError(`Upstream ${id} URL must not include a query string.`);
   url.hash = '';
   return {
     id,
-    name: String(upstream.name || id),
+    name: String(upstream.name || id).slice(0, 120),
     url: url.toString().replace(/\/$/, ''),
     weight: Math.max(1, Math.min(10, Math.round(Number(upstream.weight) || 1))),
     healthPath: upstream.healthPath || '/healthz',
@@ -87,8 +91,17 @@ export function createLoadBalancer({
   if (!Number.isInteger(requestTimeoutMs) || requestTimeoutMs < 100 || requestTimeoutMs > 120_000) {
     throw new RangeError('requestTimeoutMs must be an integer from 100 to 120000.');
   }
+  if (!Number.isInteger(healthCheckIntervalMs) || healthCheckIntervalMs < 0 || healthCheckIntervalMs > 600_000) {
+    throw new RangeError('healthCheckIntervalMs must be an integer from 0 to 600000.');
+  }
+  if (!Number.isInteger(healthFailureThreshold) || healthFailureThreshold < 1 || healthFailureThreshold > 20) {
+    throw new RangeError('healthFailureThreshold must be an integer from 1 to 20.');
+  }
 
   const nodes = upstreams.map(normalizeUpstream);
+  if (new Set(nodes.map((node) => node.id)).size !== nodes.length) {
+    throw new TypeError('Upstream ids must be unique.');
+  }
   const router = createProxyRouter({ algorithm, random });
   const startedAt = Date.now();
   const latencySamples = [];

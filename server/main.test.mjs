@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { after, before, test } from 'node:test';
 import { createRuntime } from './main.mjs';
 import { startDemoUpstreams } from './demo-upstreams.mjs';
@@ -6,9 +9,14 @@ import { startDemoUpstreams } from './demo-upstreams.mjs';
 let cluster;
 let runtime;
 let baseUrl;
+let staticRoot;
 const adminToken = 'test-only-admin-token';
 
 before(async () => {
+  staticRoot = mkdtempSync(path.join(os.tmpdir(), 'loadmind-static-'));
+  mkdirSync(path.join(staticRoot, 'assets'));
+  writeFileSync(path.join(staticRoot, 'index.html'), '<!doctype html><title>LoadMind test shell</title>');
+  writeFileSync(path.join(staticRoot, 'assets', 'app.js'), 'globalThis.loadmindTest = true;');
   cluster = await startDemoUpstreams({
     definitions: [
       { id: 'test-a', name: 'TEST-A', port: 0, latencyMs: 0, weight: 2, region: 'test' },
@@ -22,6 +30,7 @@ before(async () => {
     demo: false,
     adminToken,
     production: true,
+    staticRoot,
     healthCheckIntervalMs: 0,
   });
   await runtime.listen();
@@ -31,6 +40,7 @@ before(async () => {
 after(async () => {
   await runtime?.close();
   await cluster?.close();
+  if (staticRoot) rmSync(staticRoot, { recursive: true, force: true });
 });
 
 test('runtime exposes liveness and real upstream telemetry', async () => {
@@ -44,6 +54,22 @@ test('runtime exposes liveness and real upstream telemetry', async () => {
   assert.equal(data.algorithm, 'round-robin');
   assert.equal(data.adminAuthRequired, true);
   assert.equal(data.upstreams.length, 2);
+});
+
+test('production runtime serves the SPA shell and static assets', async () => {
+  const shell = await fetch(`${baseUrl}/`, { headers: { accept: 'text/html' } });
+  assert.equal(shell.status, 200);
+  assert.match(shell.headers.get('content-type') || '', /text\/html/);
+  assert.match(await shell.text(), /LoadMind test shell/);
+
+  const route = await fetch(`${baseUrl}/performance/lab`, { headers: { accept: 'text/html' } });
+  assert.equal(route.status, 200);
+  assert.match(await route.text(), /LoadMind test shell/);
+
+  const asset = await fetch(`${baseUrl}/assets/app.js`);
+  assert.equal(asset.status, 200);
+  assert.match(asset.headers.get('content-type') || '', /javascript/);
+  assert.equal(await asset.text(), 'globalThis.loadmindTest = true;');
 });
 
 test('operator routes are protected and accept the configured bearer token', async () => {

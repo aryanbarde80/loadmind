@@ -4,11 +4,12 @@ import { after, before, test } from 'node:test';
 import { createLoadBalancer } from './proxy.mjs';
 
 async function createUpstream({ id, delayMs = 0, healthStatus = 200 } = {}) {
+  let currentHealthStatus = healthStatus;
   const server = http.createServer(async (request, response) => {
     const url = new URL(request.url || '/', 'http://upstream.test');
     if (url.pathname === '/healthz') {
-      response.writeHead(healthStatus, { 'content-type': 'application/json' });
-      response.end(JSON.stringify({ status: healthStatus === 200 ? 'ok' : 'fail', id }));
+      response.writeHead(currentHealthStatus, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ status: currentHealthStatus === 200 ? 'ok' : 'fail', id }));
       return;
     }
     const configuredDelay = Number(url.searchParams.get('delayMs'));
@@ -45,6 +46,7 @@ async function createUpstream({ id, delayMs = 0, healthStatus = 200 } = {}) {
   return {
     server,
     definition: { id, name: id.toUpperCase(), url: `http://127.0.0.1:${address.port}`, weight: 1, healthPath: '/healthz' },
+    setHealthStatus: (status) => { currentHealthStatus = status; },
     close: () => new Promise((resolve) => {
       server.close(() => resolve());
       server.closeAllConnections?.();
@@ -72,6 +74,16 @@ after(async () => {
     gateway?.closeAllConnections?.();
   });
   await Promise.all((upstreams || []).map((upstream) => upstream.close()));
+});
+
+test('upstream configuration rejects unsafe ids, duplicates, and credentialed URLs', () => {
+  assert.throws(() => createLoadBalancer({ upstreams: [{ id: 'bad/id', url: 'http://127.0.0.1:9000' }] }), /safe header/);
+  assert.throws(() => createLoadBalancer({ upstreams: [
+    { id: 'duplicate', url: 'http://127.0.0.1:9000' },
+    { id: 'duplicate', url: 'http://127.0.0.1:9001' },
+  ] }), /unique/);
+  assert.throws(() => createLoadBalancer({ upstreams: [{ id: 'private', url: 'http://user:pass@127.0.0.1:9000' }] }), /Credentials/);
+  assert.throws(() => createLoadBalancer({ upstreams: [{ id: 'query', url: 'http://127.0.0.1:9000?token=secret' }] }), /query string/);
 });
 
 test('round robin forwards real HTTP requests across healthy upstreams', async () => {
@@ -128,6 +140,36 @@ test('unhealthy upstreams are excluded and an empty healthy pool returns 503', a
   assert.match((await response.json()).error, /No healthy upstreams/);
   assert.equal(loadBalancer.getStatus().metrics.failedRequests, before + 1);
   loadBalancer.nodes.forEach((node) => { node.healthy = true; });
+});
+
+test('active health checks eject a failing node and restore it after recovery', async () => {
+  const probe = await createUpstream({ id: 'health-probe', healthStatus: 503 });
+  const healthBalancer = createLoadBalancer({
+    upstreams: [probe.definition],
+    healthCheckIntervalMs: 0,
+    healthFailureThreshold: 2,
+  });
+  const healthGateway = http.createServer(healthBalancer.handleRequest);
+  await new Promise((resolve) => healthGateway.listen(0, '127.0.0.1', resolve));
+  const url = `http://127.0.0.1:${healthGateway.address().port}`;
+  try {
+    await healthBalancer.checkHealth();
+    assert.equal(healthBalancer.nodes[0].healthy, true, 'one failed check should not eject the node yet');
+    await healthBalancer.checkHealth();
+    assert.equal(healthBalancer.nodes[0].healthy, false);
+    assert.equal((await fetch(`${url}/proxy/api/info`)).status, 503);
+
+    probe.setHealthStatus(200);
+    await healthBalancer.checkHealth();
+    assert.equal(healthBalancer.nodes[0].healthy, true);
+  } finally {
+    healthBalancer.close();
+    await new Promise((resolve) => {
+      healthGateway.close(() => resolve());
+      healthGateway.closeAllConnections?.();
+    });
+    await probe.close();
+  }
 });
 
 test('metrics expose percentiles and recent paths without query strings', async () => {
