@@ -4,7 +4,7 @@ Thanks for helping improve LoadMind. Keep changes focused, reproducible, and bac
 
 ## Get started
 
-- Node.js 22 or newer and npm
+- Node.js 22.12 or newer and npm
 - `npm ci`
 - `npm run dev` to launch the application
 

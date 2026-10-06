@@ -1,11 +1,15 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const configDir = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   resolve: {
-    alias: { '@': path.resolve(__dirname, './src') },
+    alias: { '@': path.resolve(configDir, './src') },
   },
   server: {
     host: '0.0.0.0',
@@ -17,12 +21,14 @@ export default defineConfig({
   build: {
     target: 'es2020',
     chunkSizeWarningLimit: 1200,
-    rollupOptions: {
+    rolldownOptions: {
       output: {
-        manualChunks: {
-          react: ['react', 'react-dom'],
-          charts: ['recharts'],
-          icons: ['lucide-react'],
+        codeSplitting: {
+          groups: [
+            { name: 'react', test: /node_modules[\\/](?:react|react-dom)(?:[\\/]|$)/, priority: 20 },
+            { name: 'charts', test: /node_modules[\\/](?:recharts|d3-[^\\/]+|victory-vendor)(?:[\\/]|$)/, priority: 10 },
+            { name: 'icons', test: /node_modules[\\/]lucide-react[\\/]/, priority: 5 },
+          ],
         },
       },
     },

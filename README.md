@@ -8,10 +8,11 @@ mode that replays identical traffic through every algorithm, a chaos lab for bre
 a playground where you can write your own scheduler in JavaScript and benchmark it against the built-ins.
 
 Everything runs in the browser. No backend, no API keys, no telemetry — the simulation, the decision engine
-and the history store are all local.
+and the history store are all local. Requires Node.js 22.12+ (the current toolchain uses Vite 8 and
+Puppeteer 25).
 
 ```bash
-npm install
+npm ci
 npm run dev      # http://localhost:5173
 ```
 
@@ -209,5 +210,5 @@ auto-merged.
 
 ## Stack
 
-React 18 · TypeScript (strict) · Tailwind CSS · Recharts · Zustand · Vite · Canvas 2D · Web Worker ·
+React 18 · TypeScript (strict) · Tailwind CSS 4 · Recharts 3 · Zustand · Vite 8 · Canvas 2D · Web Worker ·
 localStorage. No backend.
