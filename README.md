@@ -7,14 +7,19 @@ routing strategies, an explainable AI autopilot that switches between them as co
 mode that replays identical traffic through every algorithm, a chaos lab for breaking things on purpose, and
 a playground where you can write your own scheduler in JavaScript and benchmark it against the built-ins.
 
-Everything runs in the browser. No backend, no API keys, no telemetry — the simulation, the decision engine
-and the history store are all local. Requires Node.js 22.12+ (the current toolchain uses Vite 8 and
-Puppeteer 25).
+LoadMind has two intentionally separate modes:
+
+- **Simulation lab:** deterministic, request-level traffic simulation, experiments, and local history. It does not need a backend, API keys, or external telemetry.
+- **Live HTTP proxy:** an optional Node.js reverse proxy that routes real requests to three local demo upstream services by default. It reports measured latency, health, and routing decisions; it does not replace the simulator.
+
+Requires Node.js 22.12+ (Vite 8 and Puppeteer 25). The single dev command starts Vite, the proxy API, and the three demo upstreams together:
 
 ```bash
 npm ci
-npm run dev      # http://localhost:5173
+npm run dev      # UI: http://localhost:5173 · API: http://localhost:8787
 ```
+
+Choose **Live HTTP Proxy** on the welcome screen (or its globe icon in the navigation) to send an actual request. Choose **Start Simulation** to use the original browser-only lab.
 
 ---
 
@@ -102,7 +107,8 @@ Example output:
 
 | Area | What it does |
 |---|---|
-| **Live traffic map** | Canvas-rendered request flow: users → internet → LoadMind → pool. Every dispatched request becomes an animated packet; successful packets are cyan, failed ones red. Up to 300 particles at 60 fps; the stream is sampled above that so the canvas stays legible. |
+| **Live HTTP proxy** | Optional real Node HTTP reverse-proxy data plane, three independently listening demo upstreams, selectable routing strategy, active health checks, timeout handling, measured p50/p95 latency, and a bounded request log that omits bodies and query strings. |
+| **Live traffic map** | Canvas-rendered simulated request flow: users → internet → LoadMind → pool. Every dispatched request becomes an animated packet; successful packets are cyan, failed ones red. Up to 300 particles at 60 fps; the stream is sampled above that so the canvas stays legible. |
 | **Server cards** | Live CPU, memory, connections, latency, error rate, share of traffic, latency sparkline and chaos badges. Click to inspect; the canvas nodes are clickable too. |
 | **Algorithm control centre** | Eight cards showing what each algorithm *would do with the next request*, using the real selection code path. A decision matrix runs all eight against the same request so you can see them disagree. |
 | **Battle mode** | Replays a seeded scenario (2 000–40 000 requests) through 2–4 algorithms in a web worker. Identical traffic for everyone: same seed, same arrivals, same pool, same chaos. Winner is decided by a composite score (latency 30 %, p95 22 %, errors 24 %, throughput 12 %, fairness 6 %, efficiency 6 %). |
@@ -111,6 +117,18 @@ Example output:
 | **Performance lab** | Every battle, saved live session and playground benchmark is persisted locally. Leaderboard, latency trend, side-by-side comparison of up to 4 runs, and CSV export with spreadsheet-formula protection. |
 | **LoadMind AI** | A floating assistant that answers from live state: distribution skew, autopilot reasoning, capacity projections with queueing math, experiment comparison. If it has no data it says so instead of inventing an answer. |
 | **Architecture view** | The full request lifecycle as clickable components, each with live stats, responsibilities and the module that implements it. |
+
+---
+
+## Live HTTP proxy mode
+
+The live data plane is optional and intentionally separate from `src/simulation/`. `npm run dev` starts a Node API/reverse proxy plus three independent local HTTP upstream services; the browser sends requests to `/proxy/*` through Vite's same-origin proxy. The Live Proxy view can send GET, slow, intentional-503, and POST-echo requests and displays the selected upstream, health, actual latency, and bounded request history.
+
+The Node routing registry implements the eight routing strategies plus deterministic, explainable Autopilot. `/api/live-proxy/status` returns live counters and p50/p95 from the most recent 500 requests; the event list retains at most 40 entries and omits request bodies and query strings. Health checks run every five seconds by default, and upstream failures are not automatically retried.
+
+Use `LOADMIND_UPSTREAMS` to provide a JSON array of `{ "id", "url", "name?", "weight?", "healthPath?" }` services; the URL must be HTTP(S) and reachable from the Node process. See [docs/live-proxy.md](docs/live-proxy.md) for demo routes, API, authentication, configuration, and the proxy's operational limits. An OpenAPI 3.1 description is in [docs/openapi.yaml](docs/openapi.yaml).
+
+For production controls, set a long random `LOADMIND_ADMIN_TOKEN`; algorithm changes and metric resets require `Authorization: Bearer <token>`. Without a token, these controls are loopback-only in production. The proxy is a portfolio/learning implementation, not a hardened public edge: terminate TLS at a trusted ingress and add network-level protection before exposing it.
 
 ---
 
@@ -141,6 +159,9 @@ src/
 ├── state/               # zustand store + engine clock
 ├── components/          # ui primitives, traffic map, panels, chat, landing
 └── views/               # one view per navigation entry
+server/                   # real-HTTP proxy, demo upstreams, routing registry, integration tests
+scripts/                  # unified dev/start runners, simulation/render/browser checks
+Dockerfile                # multi-stage production image
 ```
 
 The simulation core has **no React, DOM or storage dependencies** — the same `SimulationEngine` powers the
@@ -159,24 +180,30 @@ experiment rather than an anecdote. Reseeding from the traffic panel generates a
 ## Tests and continuous checks
 
 ```bash
-npm run validate      # strict typecheck, simulation/AI/render tests, and production build
-npm run test:browser  # starts a disposable Vite server; runs Puppeteer E2E + visual assertions
-npm test              # simulation + AI + assistant logic, and SSR render check for every view
-npm run e2e           # browser flow against a running app (default: http://localhost:5173)
-npm run visual        # DOM/canvas assertions against a running app
-npm run build         # typecheck + production build
+npm run validate      # typecheck, simulation/AI/SSR tests, proxy integration tests, production build
+npm run test:server   # real HTTP routing, health, timeout, metrics, and operator-auth tests
+npm run test:browser  # starts Vite + proxy API + 3 demo upstreams; runs Puppeteer E2E + visual checks
+npm test              # simulation + AI + assistant/CSV checks and SSR render check for every view
+npm run e2e           # browser flow against a running full stack (default: http://localhost:5173)
+npm run visual        # DOM/canvas/proxy assertions against a running full stack
+npm run build         # typecheck + production UI build
+npm start             # serve built UI + API + demo upstreams on port 4173
 ```
 
-`npm run test:browser` uses port 5174 by default (`LOADMIND_TEST_PORT` can override it) and writes generated
-screenshots to the ignored `test-results/` directory, leaving the curated portfolio screenshots in
-`screenshots/` untouched. The direct `e2e` and `visual` commands accept `BASE_URL` when testing another
-running instance. Browser tests need Puppeteer's downloaded Chrome; set `PUPPETEER_SKIP_DOWNLOAD=1` only
-when you do not plan to run them.
+`npm run test:browser` uses ports 5174 (Vite) and 8788 (API) by default; `LOADMIND_TEST_PORT` and
+`LOADMIND_TEST_API_PORT` can override them. Its disposable demo upstreams bind to ports 9101–9103. Generated
+screenshots go to the ignored `test-results/` directory, leaving the curated portfolio screenshots in
+`screenshots/` untouched. Direct `e2e` and `visual` commands accept `BASE_URL` when testing another running
+full stack. Browser tests need Puppeteer's downloaded Chrome; set `PUPPETEER_SKIP_DOWNLOAD=1` only when you
+do not plan to run them.
 
-`npm test` covers request dispatch and completion, all eight algorithms, distinct routing distributions,
-chaos degradation, autopilot scoring and switching, battle determinism, custom-algorithm compilation,
-traffic patterns, assistant answers, and CSV escaping/formula protection. The visual suite samples canvas
-pixels to confirm the traffic map is drawing and checks responsive widths for horizontal overflow.
+`npm test` covers simulation dispatch/completion, all eight simulated strategies, routing distributions,
+chaos degradation, Autopilot scoring and switching, battle determinism, custom-algorithm compilation,
+traffic patterns, assistant answers, SSR rendering, and CSV escaping/formula protection. `npm run test:server`
+exercises actual HTTP forwarding, all proxy strategies, health exclusion, timeout handling, bounded/privacy-
+conscious telemetry, production operator authentication, and metric reset. Browser assertions drive real demo
+requests, verify the returned 503 path and strategy change, sample the traffic-map canvas, and check responsive
+overflow in both modes.
 
 GitHub Actions audits production dependencies, runs `npm run validate` and both browser suites on pushes,
 pull requests to `main`, and a weekly schedule, then uploads browser screenshots as a short-lived workflow
@@ -211,4 +238,4 @@ auto-merged.
 ## Stack
 
 React 18 · TypeScript (strict) · Tailwind CSS 4 · Recharts 3 · Zustand · Vite 8 · Canvas 2D · Web Worker ·
-localStorage. No backend.
+localStorage. Optional service layer: Node.js 22 built-in HTTP/HTTPS modules, native Fetch health checks, a separate routing registry, and three local demo upstreams. No Express or external AI/API dependency.

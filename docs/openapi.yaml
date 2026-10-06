@@ -1,0 +1,197 @@
+openapi: 3.1.0
+info:
+  title: LoadMind Live Proxy API
+  version: 1.0.0
+  description: Same-origin control and telemetry API for the optional real-HTTP proxy mode.
+servers:
+  - url: http://localhost:8787
+    description: Local development API (or the Vite same-origin proxy)
+paths:
+  /api/health:
+    get:
+      summary: Check process liveness
+      operationId: getHealth
+      responses:
+        '200':
+          description: Process is serving requests
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, service, mode]
+                properties:
+                  status: { const: ok }
+                  service: { const: loadmind }
+                  mode: { type: string, enum: [development, production] }
+  /api/live-proxy/status:
+    get:
+      summary: Read routing state and live proxy telemetry
+      operationId: getProxyStatus
+      responses:
+        '200':
+          description: In-memory routing state; upstream addresses are intentionally not disclosed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProxyStatus'
+  /api/live-proxy/algorithm:
+    post:
+      summary: Change the real-request routing strategy
+      operationId: setProxyAlgorithm
+      description: In production, configure LOADMIND_ADMIN_TOKEN and pass it as a Bearer token. Without a token, operator actions are loopback-only.
+      security:
+        - operatorBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [algorithm]
+              properties:
+                algorithm:
+                  type: string
+                  enum:
+                    - round-robin
+                    - weighted-round-robin
+                    - least-connections
+                    - weighted-least-connections
+                    - ip-hash
+                    - random
+                    - least-response-time
+                    - consistent-hash
+                    - autopilot
+      responses:
+        '200':
+          description: Strategy changed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, algorithm]
+                properties:
+                  ok: { const: true }
+                  algorithm: { type: string }
+        '400': { description: Invalid JSON or unsupported algorithm }
+        '401': { description: Missing or invalid operator authorization }
+  /api/live-proxy/reset:
+    post:
+      summary: Reset in-memory proxy metrics
+      operationId: resetProxyMetrics
+      security:
+        - operatorBearer: []
+      responses:
+        '200':
+          description: Counters and recent events reset
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { const: true }
+        '401': { description: Missing or invalid operator authorization }
+  /proxy/{path}:
+    parameters:
+      - name: path
+        in: path
+        required: true
+        description: Path forwarded to the selected upstream after removing the /proxy prefix
+        schema: { type: string }
+    get:
+      summary: Forward an HTTP GET request
+      operationId: proxyGet
+      responses:
+        default:
+          description: Upstream response, with LoadMind routing headers
+          headers:
+            X-LoadMind-Upstream: { schema: { type: string } }
+            X-LoadMind-Request-Id: { schema: { type: string, format: uuid } }
+            X-LoadMind-Algorithm: { schema: { type: string } }
+    post:
+      summary: Forward an HTTP POST request
+      operationId: proxyPost
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: {}
+      responses:
+        default:
+          description: Upstream response, or a proxy timeout/error response
+          headers:
+            X-LoadMind-Upstream: { schema: { type: string } }
+            X-LoadMind-Request-Id: { schema: { type: string, format: uuid } }
+            X-LoadMind-Algorithm: { schema: { type: string } }
+components:
+  securitySchemes:
+    operatorBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque
+  schemas:
+    ProxyStatus:
+      type: object
+      required: [service, uptimeSeconds, algorithm, algorithmName, effectiveAlgorithm, effectiveAlgorithmName, autopilotReason, adminAuthRequired, adminControlsAvailable, adminControlMode, metrics, upstreams, recentRequests]
+      properties:
+        service: { type: string }
+        uptimeSeconds: { type: number }
+        algorithm: { type: string }
+        algorithmName: { type: string }
+        effectiveAlgorithm: { type: string }
+        effectiveAlgorithmName: { type: string }
+        autopilotReason: { type: string }
+        adminAuthRequired: { type: boolean }
+        adminControlsAvailable: { type: boolean }
+        adminControlMode: { type: string, enum: [development, loopback-only, bearer] }
+        metrics:
+          type: object
+          required: [totalRequests, completedRequests, successfulRequests, failedRequests, averageLatencyMs, p50LatencyMs, p95LatencyMs, inFlight, healthyUpstreams, upstreamCount]
+          properties:
+            totalRequests: { type: integer }
+            completedRequests: { type: integer }
+            successfulRequests: { type: integer }
+            failedRequests: { type: integer }
+            averageLatencyMs: { type: number }
+            p50LatencyMs: { type: number }
+            p95LatencyMs: { type: number }
+            inFlight: { type: integer }
+            healthyUpstreams: { type: integer }
+            upstreamCount: { type: integer }
+        upstreams:
+          type: array
+          items:
+            type: object
+            required: [id, name, weight, healthy, inFlight, totalRequests, ewmaLatencyMs]
+            properties:
+              id: { type: string }
+              name: { type: string }
+              weight: { type: integer }
+              healthy: { type: boolean }
+              draining: { type: boolean }
+              inFlight: { type: integer }
+              totalRequests: { type: integer }
+              successfulRequests: { type: integer }
+              failedRequests: { type: integer }
+              ewmaLatencyMs: { type: number }
+              lastLatencyMs: { type: number }
+              lastStatusCode: { type: [integer, 'null'] }
+              consecutiveHealthFailures: { type: integer }
+              lastHealthCheckAt: { type: [string, 'null'], format: date-time }
+        recentRequests:
+          type: array
+          maxItems: 40
+          items:
+            type: object
+            required: [requestId, upstreamName, method, path, statusCode, latencyMs, algorithm, outcome, completedAt]
+            properties:
+              requestId: { type: string, format: uuid }
+              upstreamId: { type: [string, 'null'] }
+              upstreamName: { type: string }
+              method: { type: string }
+              path: { type: string, description: Query strings are omitted; avoid sensitive identifiers in path segments. }
+              statusCode: { type: integer }
+              latencyMs: { type: number }
+              algorithm: { type: string }
+              outcome: { type: string, enum: [success, error] }
+              completedAt: { type: string, format: date-time }
