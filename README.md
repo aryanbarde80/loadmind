@@ -126,7 +126,7 @@ The live data plane is optional and intentionally separate from `src/simulation/
 
 The Node routing registry implements the eight routing strategies plus deterministic, explainable Autopilot. `/api/live-proxy/status` returns live counters and p50/p95 from the most recent 500 requests; the event list retains at most 40 entries and omits request bodies and query strings. Health checks run every five seconds by default, and upstream failures are not automatically retried.
 
-Use `LOADMIND_UPSTREAMS` to provide a JSON array of `{ "id", "url", "name?", "weight?", "healthPath?" }` services; the URL must be HTTP(S) and reachable from the Node process. See [docs/live-proxy.md](docs/live-proxy.md) for demo routes, API, authentication, configuration, and the proxy's operational limits. An OpenAPI 3.1 description is in [docs/openapi.yaml](docs/openapi.yaml).
+Use `LOADMIND_UPSTREAMS` to provide a JSON array of `{ "id", "url", "name?", "weight?", "healthPath?" }` services; IDs must be unique and safe for response headers, and URLs must be HTTP(S) and reachable from the Node process (without embedded credentials or a query string). See [docs/live-proxy.md](docs/live-proxy.md) for demo routes, API, authentication, configuration, and the proxy's operational limits. An OpenAPI 3.1 description is in [docs/openapi.yaml](docs/openapi.yaml).
 
 For production controls, set a long random `LOADMIND_ADMIN_TOKEN`; algorithm changes and metric resets require `Authorization: Bearer <token>`. Without a token, these controls are loopback-only in production. The proxy is a portfolio/learning implementation, not a hardened public edge: terminate TLS at a trusted ingress and add network-level protection before exposing it.
 

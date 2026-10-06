@@ -63,7 +63,7 @@ Metrics are in-memory and process-local. Latency percentiles use the most recent
 
 ## Configure your own upstreams
 
-Set `LOADMIND_UPSTREAMS` to a JSON array. Each item needs a unique `id` and an HTTP(S) `url`; `name`, `weight` (1–10), and `healthPath` are optional.
+Set `LOADMIND_UPSTREAMS` to a JSON array. Each item needs a unique, header-safe `id` and an HTTP(S) `url`; `name`, `weight` (1–10), and `healthPath` are optional. URLs with embedded credentials or query strings are rejected.
 
 ```dotenv
 LOADMIND_DEMO_MODE=false
