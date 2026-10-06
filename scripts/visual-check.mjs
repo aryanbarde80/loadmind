@@ -10,7 +10,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 
 const BASE = process.env.BASE_URL ?? 'http://localhost:5173';
-const OUT = path.join(process.cwd(), 'screenshots');
+const OUT = path.resolve(process.env.VISUAL_SCREENSHOT_DIR ?? path.join(process.cwd(), 'test-results', 'visual'));
 fs.mkdirSync(OUT, { recursive: true });
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 

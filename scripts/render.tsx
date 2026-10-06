@@ -7,6 +7,7 @@
 import React from 'react';
 import { renderToString } from 'react-dom/server';
 import { useApp } from '../src/state/store';
+import type { RunRecord } from '../src/types';
 
 const views = [
   ['ControlView', () => require('../src/views/ControlView').ControlView],
@@ -37,32 +38,61 @@ console.error = (...args: unknown[]) => {
 
 console.log('\n=== LoadMind render check ===\n');
 
-// Prime some state so panels with data-dependent branches also render.
-try {
-  const store = useApp.getState();
-  store.setView('control');
-  store.openAlgorithmDetail('least-response-time');
-  store.setWhyOpen(true);
-  store.setChatOpen(true);
-  // Seed history so the Performance Lab renders its charts and tables.
-  store.saveLiveRun();
-  store.saveLiveRun();
-} catch (error) {
-  console.log(`  [warn] state priming: ${(error as Error).message}`);
-}
-
-// zustand uses `getInitialState` as the server snapshot, so SSR components
-// read the store's *initial* state. Mutating it lets the data-dependent
-// branches (modals, populated lab) render in this harness.
-try {
-  Object.assign(useApp.getInitialState(), {
-    whyOpen: true,
-    algorithmDetailId: 'least-response-time',
-    'chat.open': true,
-  });
-} catch {
-  /* older zustand builds expose no getInitialState */
-}
+// Zustand uses getInitialState as the server snapshot. Seed that snapshot
+// directly so SSR covers open overlays and a populated Performance Lab without
+// calling browser-only persistence actions such as saveLiveRun().
+const now = Date.now();
+const seededRuns: RunRecord[] = [
+  {
+    id: 'render-lrt',
+    kind: 'live',
+    createdAt: now - 2_000,
+    label: 'Least Response Time · normal',
+    algorithm: 'least-response-time',
+    algorithmName: 'Least Response Time',
+    pattern: 'normal',
+    baseRps: 420,
+    serverCount: 5,
+    requests: 8_400,
+    avgLatencyMs: 62,
+    p95Ms: 140,
+    p99Ms: 210,
+    throughput: 414,
+    errorRate: 0.002,
+    fairness: 0.96,
+    cpu: 48,
+    score: 87.4,
+    chaosSummary: 'none',
+  },
+  {
+    id: 'render-rr',
+    kind: 'battle',
+    createdAt: now - 1_000,
+    label: 'Round Robin · normal',
+    algorithm: 'round-robin',
+    algorithmName: 'Round Robin',
+    pattern: 'normal',
+    baseRps: 420,
+    serverCount: 5,
+    requests: 8_400,
+    avgLatencyMs: 78,
+    p95Ms: 171,
+    p99Ms: 260,
+    throughput: 409,
+    errorRate: 0.006,
+    fairness: 0.99,
+    cpu: 52,
+    score: 80.2,
+    chaosSummary: 'none',
+  },
+];
+const initialState = useApp.getInitialState();
+Object.assign(initialState, {
+  runs: seededRuns,
+  whyOpen: true,
+  algorithmDetailId: 'least-response-time',
+  chat: { ...initialState.chat, open: true },
+});
 
 let failures = 0;
 for (const [name, load] of views) {

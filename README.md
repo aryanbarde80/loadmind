@@ -155,23 +155,32 @@ experiment rather than an anecdote. Reseeding from the traffic panel generates a
 
 ---
 
-## Tests
+## Tests and continuous checks
 
 ```bash
-npm test        # simulation + AI + assistant logic, and SSR render check for every view
-npm run e2e     # Puppeteer: boots the app, exercises every view, runs a battle, screenshots
-npm run visual  # DOM/canvas assertions: canvas paints, no layout overflow, numbers update
-npm run build   # typecheck + production build
+npm run validate      # strict typecheck, simulation/AI/render tests, and production build
+npm run test:browser  # starts a disposable Vite server; runs Puppeteer E2E + visual assertions
+npm test              # simulation + AI + assistant logic, and SSR render check for every view
+npm run e2e           # browser flow against a running app (default: http://localhost:5173)
+npm run visual        # DOM/canvas assertions against a running app
+npm run build         # typecheck + production build
 ```
 
-`npm test` and `npm run build` need no browser. The two Puppeteer suites download Chrome on install — skip it
-with `PUPPETEER_SKIP_DOWNLOAD=1 npm install` if you only want the app.
+`npm run test:browser` uses port 5174 by default (`LOADMIND_TEST_PORT` can override it) and writes generated
+screenshots to the ignored `test-results/` directory, leaving the curated portfolio screenshots in
+`screenshots/` untouched. The direct `e2e` and `visual` commands accept `BASE_URL` when testing another
+running instance. Browser tests need Puppeteer's downloaded Chrome; set `PUPPETEER_SKIP_DOWNLOAD=1` only
+when you do not plan to run them.
 
-`npm test` covers: request dispatch and completion, all eight algorithms routing, algorithms producing
-measurably different distributions, chaos degrading the pool, the autopilot scoring and switching, battle
-determinism, custom-algorithm compilation (including rejection of broken code), traffic-pattern behaviour,
-and the assistant's answers. `npm run visual` reads canvas pixels to confirm the traffic map is actually
-drawing, and checks four viewport widths for horizontal overflow.
+`npm test` covers request dispatch and completion, all eight algorithms, distinct routing distributions,
+chaos degradation, autopilot scoring and switching, battle determinism, custom-algorithm compilation,
+traffic patterns, and assistant answers. The visual suite samples canvas pixels to confirm the traffic map
+is drawing and checks responsive widths for horizontal overflow.
+
+GitHub Actions audits production dependencies, runs `npm run validate` and both browser suites on pushes,
+pull requests to `main`, and a weekly schedule, then uploads browser screenshots as a short-lived workflow
+artifact. Dependabot proposes weekly npm and GitHub Actions updates; the updates are tested but are **not**
+auto-merged.
 
 ---
 

@@ -12,7 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const BASE = process.env.BASE_URL ?? 'http://localhost:5173';
-const OUT = path.join(process.cwd(), 'screenshots');
+const OUT = path.resolve(process.env.E2E_SCREENSHOT_DIR ?? path.join(process.cwd(), 'test-results', 'e2e'));
 fs.mkdirSync(OUT, { recursive: true });
 
 const errors = [];
@@ -233,4 +233,5 @@ if (errors.length) {
   console.log('\n--- messages ---');
   unique.slice(0, 25).forEach((e) => console.log(`  ${e}`));
 }
-console.log(`\n=== ${errors.length === 0 ? 'E2E CLEAN' : 'E2E COMPLETED WITH MESSAGES'} ===\n`);
+console.log(`\n=== ${errors.length === 0 ? 'E2E CLEAN' : 'E2E FAILED'} ===\n`);
+process.exitCode = errors.length === 0 ? 0 : 1;

@@ -8,6 +8,7 @@ tsconfig.tsbuildinfo
 
 # test artifacts
 .test-*.cjs
+test-results/
 
 # local env / secrets
 .env
