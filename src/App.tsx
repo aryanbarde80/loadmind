@@ -12,6 +12,7 @@ import { ChaosView } from '@/views/ChaosView';
 import { PlaygroundView } from '@/views/PlaygroundView';
 import { LabView } from '@/views/LabView';
 import { ArchitectureView } from '@/views/ArchitectureView';
+import { LiveProxyView } from '@/views/LiveProxyView';
 import { AlgorithmDetailModal } from '@/components/algorithms/AlgorithmDetailModal';
 import { WhyModal } from '@/components/autopilot/WhyModal';
 import { ChatPanel } from '@/components/chat/ChatPanel';
@@ -60,6 +61,7 @@ export default function App() {
           {view === 'playground' && <PlaygroundView />}
           {view === 'lab' && <LabView />}
           {view === 'architecture' && <ArchitectureView />}
+          {view === 'live-proxy' && <LiveProxyView />}
         </main>
 
         {booted && (
@@ -68,12 +70,14 @@ export default function App() {
               <span
                 className={`h-1.5 w-1.5 rounded-full ${snapshot.running ? 'bg-neon-mint' : 'bg-slate-600'}`}
               />
-              {snapshot.running ? 'simulation running' : 'simulation paused'}
+              {view === 'live-proxy' ? 'simulator remains separate' : snapshot.running ? 'simulation running' : 'simulation paused'}
             </span>
-            <span>seed {snapshot.config.seed}</span>
-            <span>tick 50ms</span>
+            {view !== 'live-proxy' && <span>seed {snapshot.config.seed}</span>}
+            {view !== 'live-proxy' && <span>tick 50ms</span>}
             <span>
-              {snapshot.servers.length} upstreams · {snapshot.metrics.completed.toLocaleString()} requests completed
+              {view === 'live-proxy'
+                ? 'real HTTP mode · active health checks'
+                : `${snapshot.servers.length} upstreams · ${snapshot.metrics.completed.toLocaleString()} requests completed`}
             </span>
             <span className="ml-auto hidden items-center gap-1.5 sm:flex">
               <Command className="h-3 w-3" />K ask AI · space run/pause
@@ -101,7 +105,15 @@ export default function App() {
         </div>
       )}
 
-      {!booted && <Landing onStart={boot} />}
+      {!booted && (
+        <Landing
+          onStart={boot}
+          onOpenLiveProxy={() => {
+            useApp.getState().dismissBoot();
+            useApp.getState().setView('live-proxy');
+          }}
+        />
+      )}
     </div>
   );
 }

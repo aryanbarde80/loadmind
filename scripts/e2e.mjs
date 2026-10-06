@@ -199,6 +199,35 @@ await step('architecture view', async () => {
   await page.screenshot({ path: path.join(OUT, '13-architecture.png') });
 });
 
+await step('real HTTP proxy routes requests and records live metrics', async () => {
+  await page.click('nav button[title^="Live Proxy"]');
+  await page.waitForFunction(() => document.body.innerText.includes('EDGE-A'), { timeout: 12000 });
+  await page.screenshot({ path: path.join(OUT, '17-live-proxy.png'), fullPage: true });
+
+  await clickText('button', 'Send real request');
+  await page.waitForFunction(() => document.body.innerText.includes('HTTP 200'), { timeout: 12000 });
+
+  await page.select('select[aria-label="Live proxy routing strategy"]', 'weighted-round-robin');
+  await page.waitForFunction(async () => {
+    const response = await fetch('/api/live-proxy/status');
+    return (await response.json()).algorithm === 'weighted-round-robin';
+  }, { timeout: 10000 });
+
+  await page.select('select[aria-label="Demo proxy route"]', '/api/fail');
+  await clickText('button', 'Send real request');
+  await page.waitForFunction(() => document.body.innerText.includes('HTTP 503'), { timeout: 12000 });
+
+  await page.select('select[aria-label="Demo proxy route"]', '/api/echo');
+  await clickText('button', 'Send real request');
+  await page.waitForFunction(() => document.body.innerText.includes('hello from LoadMind'), { timeout: 12000 });
+
+  const metrics = await page.evaluate(async () => (await fetch('/api/live-proxy/status')).json());
+  if (metrics.metrics.totalRequests < 3 || metrics.metrics.failedRequests < 1) {
+    throw new Error(`Proxy metrics were not updated: ${JSON.stringify(metrics.metrics)}`);
+  }
+  await page.screenshot({ path: path.join(OUT, '18-live-proxy-requests.png'), fullPage: true });
+});
+
 await step('ask LoadMind AI', async () => {
   await page.click('nav button[title^="Control Center"]');
   await wait(800);

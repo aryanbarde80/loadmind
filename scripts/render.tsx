@@ -17,6 +17,7 @@ const views = [
   ['PlaygroundView', () => require('../src/views/PlaygroundView').PlaygroundView],
   ['LabView', () => require('../src/views/LabView').LabView],
   ['ArchitectureView', () => require('../src/views/ArchitectureView').ArchitectureView],
+  ['LiveProxyView', () => require('../src/views/LiveProxyView').LiveProxyView],
   ['Landing', () => require('../src/components/landing/Landing').Landing],
   ['ChatPanel', () => require('../src/components/chat/ChatPanel').ChatPanel],
   ['AlgorithmDetailModal', () => require('../src/components/algorithms/AlgorithmDetailModal').AlgorithmDetailModal],

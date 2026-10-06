@@ -12,6 +12,8 @@ export function TopBar() {
   const setAutopilot = useApp((s) => s.setAutopilot);
   const setChatOpen = useApp((s) => s.setChatOpen);
   const chatOpen = useApp((s) => s.chat.open);
+  const view = useApp((s) => s.view);
+  const isLiveProxy = view === 'live-proxy';
   const m = snapshot.metrics;
 
   return (
@@ -21,15 +23,15 @@ export function TopBar() {
         <div className="leading-none">
           <div className="font-display text-[15px] font-bold tracking-tight text-white">LOADMIND</div>
           <div className="mt-[3px] font-mono text-[9px] uppercase tracking-[0.2em] text-slate-600">
-            intelligent load balancing
+            {isLiveProxy ? 'real HTTP reverse proxy' : 'intelligent load balancing'}
           </div>
         </div>
       </div>
 
       <div className="mx-1 hidden h-8 w-px bg-white/[0.07] lg:block" />
 
-      {/* Live vitals */}
-      <div className="hidden min-w-0 flex-1 items-center gap-4 lg:flex">
+      {/* Simulator vitals are hidden while inspecting the independent HTTP data plane. */}
+      {!isLiveProxy && <div className="hidden min-w-0 flex-1 items-center gap-4 lg:flex">
         <Vital label="RPS" value={m.throughput.toFixed(0)} sub={`${m.arrivalRate.toFixed(0)} in`} />
         <Vital
           label="P95"
@@ -45,25 +47,33 @@ export function TopBar() {
         />
         <Vital label="POOL" value={`${m.healthyCount}/${snapshot.servers.length}`} sub={`${m.downCount} down`} tone={m.downCount ? 'bad' : 'good'} />
         <Vital label="CLOCK" value={simClock(snapshot.simTime)} sub={`${snapshot.inFlight} in flight`} />
-      </div>
+      </div>}
 
       <div className="ml-auto flex items-center gap-2">
-        <div className="hidden items-center gap-2 rounded-lg border border-white/[0.07] bg-black/30 px-2.5 py-1.5 xl:flex">
-          <Sparkles className={clsx('h-3.5 w-3.5', snapshot.autopilot.enabled ? 'text-neon-violet' : 'text-slate-600')} />
-          <span className="mr-1 font-mono text-[10px] uppercase tracking-wider text-slate-500">autopilot</span>
-          <Toggle checked={snapshot.autopilot.enabled} onChange={setAutopilot} size="sm" accent="violet" />
-        </div>
+        {isLiveProxy ? (
+          <span className="hidden items-center gap-1.5 rounded-lg border border-neon-cyan/20 bg-neon-cyan/[0.06] px-2.5 py-2 font-mono text-[9px] uppercase tracking-wider text-neon-cyan sm:inline-flex">
+            <Activity className="h-3 w-3" /> real HTTP mode
+          </span>
+        ) : (
+          <>
+            <div className="hidden items-center gap-2 rounded-lg border border-white/[0.07] bg-black/30 px-2.5 py-1.5 xl:flex">
+              <Sparkles className={clsx('h-3.5 w-3.5', snapshot.autopilot.enabled ? 'text-neon-violet' : 'text-slate-600')} />
+              <span className="mr-1 font-mono text-[10px] uppercase tracking-wider text-slate-500">autopilot</span>
+              <Toggle checked={snapshot.autopilot.enabled} onChange={setAutopilot} size="sm" accent="violet" />
+            </div>
 
-        <button type="button" onClick={toggleRunning} className={clsx('btn px-2.5 py-1.5', !snapshot.running && 'btn-primary')}>
-          {snapshot.running ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-          <span className="hidden sm:inline">{snapshot.running ? 'Pause' : 'Run'}</span>
-        </button>
-        <button type="button" onClick={resetSimulation} className="btn btn-ghost px-2 py-1.5" title="Reset">
-          <RotateCcw className="h-3.5 w-3.5" />
-        </button>
-        <button type="button" onClick={saveLiveRun} className="btn btn-ghost px-2 py-1.5" title="Save run to Performance Lab">
-          <Save className="h-3.5 w-3.5" />
-        </button>
+            <button type="button" onClick={toggleRunning} className={clsx('btn px-2.5 py-1.5', !snapshot.running && 'btn-primary')}>
+              {snapshot.running ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+              <span className="hidden sm:inline">{snapshot.running ? 'Pause' : 'Run'}</span>
+            </button>
+            <button type="button" onClick={resetSimulation} className="btn btn-ghost px-2 py-1.5" title="Reset">
+              <RotateCcw className="h-3.5 w-3.5" />
+            </button>
+            <button type="button" onClick={saveLiveRun} className="btn btn-ghost px-2 py-1.5" title="Save run to Performance Lab">
+              <Save className="h-3.5 w-3.5" />
+            </button>
+          </>
+        )}
         <button
           type="button"
           onClick={() => setChatOpen(!chatOpen)}

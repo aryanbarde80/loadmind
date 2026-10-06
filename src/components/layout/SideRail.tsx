@@ -3,6 +3,7 @@ import {
   Boxes,
   Flame,
   FlaskConical,
+  Globe,
   Network,
   ShieldAlert,
   Swords,
@@ -20,6 +21,7 @@ const NAV: { id: ViewId; label: string; icon: React.ComponentType<{ className?: 
   { id: 'playground', label: 'Playground', icon: Terminal, hint: 'Build your own algorithm' },
   { id: 'lab', label: 'Performance Lab', icon: FlaskConical, hint: 'Historical runs & comparison' },
   { id: 'architecture', label: 'Architecture', icon: Boxes, hint: 'How LoadMind works' },
+  { id: 'live-proxy', label: 'Live Proxy', icon: Globe, hint: 'Real HTTP routing & upstream health' },
 ];
 
 export function SideRail() {

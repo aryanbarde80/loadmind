@@ -1,15 +1,20 @@
 import { useEffect, useRef } from 'react';
-import { Activity, ArrowRight, Play, Sparkles, Swords, Zap } from 'lucide-react';
+import { Activity, ArrowRight, Globe, Play, Sparkles, Swords, Zap } from 'lucide-react';
 import { Logo } from '@/components/layout/TopBar';
 
 /**
  * Landing experience.
  *
- * Three doors into the product; each one actually configures the simulation
- * (autopilot boots with the decision engine already engaged) rather than just
- * navigating.
+ * The entry screen exposes both the deterministic simulator and the optional
+ * real-HTTP proxy without replacing one with the other.
  */
-export function Landing({ onStart }: { onStart: (mode: 'simulation' | 'battle' | 'autopilot') => void }) {
+export function Landing({
+  onStart,
+  onOpenLiveProxy,
+}: {
+  onStart: (mode: 'simulation' | 'battle' | 'autopilot') => void;
+  onOpenLiveProxy: () => void;
+}) {
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center overflow-hidden bg-void-950">
@@ -35,7 +40,7 @@ export function Landing({ onStart }: { onStart: (mode: 'simulation' | 'battle' |
           strategy as conditions change — and a lab to prove which one actually wins.
         </p>
 
-        <div className="mt-10 grid gap-3 sm:grid-cols-3">
+        <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Choice
             icon={<Play className="h-5 w-5" />}
             title="Start Simulation"
@@ -56,6 +61,13 @@ export function Landing({ onStart }: { onStart: (mode: 'simulation' | 'battle' |
             description="Start with the decision engine engaged and watch it switch strategies."
             accent="violet"
             onClick={() => onStart('autopilot')}
+          />
+          <Choice
+            icon={<Globe className="h-5 w-5" />}
+            title="Live HTTP Proxy"
+            description="Send real HTTP requests to health-checked demo services."
+            accent="cyan"
+            onClick={onOpenLiveProxy}
           />
         </div>
 

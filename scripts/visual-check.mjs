@@ -222,6 +222,24 @@ await wait(5000);
   await page.screenshot({ path: path.join(OUT, '21-chat-answer.png') });
 }
 
+/* ---------------------------------------------- 10. real HTTP proxy view */
+{
+  await page.click('nav button[title^="Live Proxy"]');
+  await wait(1400);
+  const proxyView = await page.evaluate(() => document.body.innerText);
+  check('live proxy is connected to its API', /REAL UPSTREAM TELEMETRY|connected/i.test(proxyView) && /EDGE-A/.test(proxyView));
+  check('proxy controls and recent request log render', /Choose the real-request policy/.test(proxyView) && /Most recent proxy requests/.test(proxyView));
+  await page.screenshot({ path: path.join(OUT, '22-live-proxy.png'), fullPage: true });
+
+  for (const [w, h] of [[1280, 800], [900, 800]]) {
+    await page.setViewport({ width: w, height: h });
+    await wait(400);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    check(`live proxy has no horizontal overflow at ${w}×${h}`, overflow <= 2, `${overflow}px`);
+  }
+  await page.setViewport({ width: 1600, height: 1000 });
+}
+
 check('no uncaught page errors', pageErrors.length === 0, pageErrors.slice(0, 2).join(' | '));
 
 await browser.close();

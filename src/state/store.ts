@@ -42,7 +42,7 @@ import type {
 /** The single simulation instance driving the whole application. */
 export const engine = new SimulationEngine(DEFAULT_CONFIG);
 
-export type ViewId = 'control' | 'algorithms' | 'battle' | 'chaos' | 'playground' | 'lab' | 'architecture';
+export type ViewId = 'control' | 'algorithms' | 'battle' | 'chaos' | 'playground' | 'lab' | 'architecture' | 'live-proxy';
 
 export interface BattleState {
   status: 'idle' | 'running' | 'done' | 'error';
