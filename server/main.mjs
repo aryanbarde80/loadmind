@@ -244,7 +244,7 @@ export async function start() {
   });
   const address = await runtime.listen();
   console.log(`LoadMind proxy listening at http://${address.address}:${address.port}`);
-  console.log(`Demo upstreams: ${runtime.proxy.getStatus().upstreams.map((upstream) => `${upstream.name}=${upstream.url}`).join(', ')}`);
+  console.log(`Configured upstreams: ${runtime.proxy.getStatus().upstreams.map((upstream) => upstream.name).join(', ')}`);
 
   let shuttingDown = false;
   const shutdown = async (signal) => {
