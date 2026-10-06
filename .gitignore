@@ -1,0 +1,21 @@
+# dependencies
+node_modules
+
+# build output
+dist
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+
+# test artifacts
+.test-*.cjs
+
+# local env / secrets
+.env
+.env.*
+*.local
+
+# editors & OS
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea

@@ -1,0 +1,251 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+    --grid: rgba(148, 163, 184, 0.055);
+    --edge: rgba(148, 163, 184, 0.14);
+    --glow-cyan: rgba(34, 211, 238, 0.35);
+    --glow-violet: rgba(139, 124, 246, 0.3);
+  }
+
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-void-950 text-slate-200 font-sans antialiased;
+    margin: 0;
+    overflow: hidden;
+    background-image:
+      radial-gradient(900px 520px at 8% -8%, rgba(34, 211, 238, 0.1), transparent 60%),
+      radial-gradient(760px 480px at 96% 4%, rgba(139, 124, 246, 0.11), transparent 62%),
+      radial-gradient(1100px 700px at 50% 115%, rgba(52, 229, 176, 0.07), transparent 60%),
+      linear-gradient(180deg, #04060b 0%, #05070e 45%, #04060b 100%);
+  }
+
+  ::selection {
+    background: rgba(34, 211, 238, 0.28);
+  }
+
+  /* Numbers must never jitter while animating. */
+  .num {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+  }
+
+  ::-webkit-scrollbar {
+    width: 9px;
+    height: 9px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.18);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 163, 184, 0.34);
+    background-clip: content-box;
+  }
+
+  input[type='range'] {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    height: 22px;
+    cursor: pointer;
+  }
+  input[type='range']::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 999px;
+    background: linear-gradient(
+      90deg,
+      #22d3ee 0%,
+      #22d3ee var(--pct, 50%),
+      rgba(148, 163, 184, 0.18) var(--pct, 50%),
+      rgba(148, 163, 184, 0.18) 100%
+    );
+  }
+  input[type='range']::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    height: 14px;
+    width: 14px;
+    margin-top: -5px;
+    border-radius: 999px;
+    background: #e2f7ff;
+    border: 2px solid #22d3ee;
+    box-shadow: 0 0 10px rgba(34, 211, 238, 0.7);
+  }
+  input[type='range']::-moz-range-track {
+    height: 4px;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.18);
+  }
+  input[type='range']::-moz-range-progress {
+    height: 4px;
+    border-radius: 999px;
+    background: #22d3ee;
+  }
+  input[type='range']::-moz-range-thumb {
+    height: 12px;
+    width: 12px;
+    border-radius: 999px;
+    background: #e2f7ff;
+    border: 2px solid #22d3ee;
+  }
+}
+
+@layer components {
+  .panel {
+    @apply relative rounded-2xl border border-white/[0.07] bg-white/[0.025] backdrop-blur-xl;
+    box-shadow:
+      0 24px 60px -34px rgba(0, 0, 0, 0.95),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.045);
+  }
+
+  .panel-flat {
+    @apply relative rounded-xl border border-white/[0.06] bg-white/[0.02];
+  }
+
+  .panel-head {
+    @apply flex items-center justify-between gap-3 border-b border-white/[0.06] px-4 py-3;
+  }
+
+  .eyebrow {
+    @apply text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] font-medium text-slate-300;
+  }
+
+  .btn {
+    @apply inline-flex select-none items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.045] px-3 py-2 text-[13px] font-medium text-slate-200 transition-all duration-150;
+  }
+  .btn:hover {
+    @apply border-white/20 bg-white/[0.09] text-white;
+  }
+  .btn:active {
+    transform: translateY(1px);
+  }
+  .btn:disabled {
+    @apply cursor-not-allowed opacity-40;
+  }
+  .btn-primary {
+    @apply border-neon-cyan/40 bg-neon-cyan/15 text-neon-cyan;
+    box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.16), 0 10px 30px -14px rgba(34, 211, 238, 0.55);
+  }
+  .btn-primary:hover {
+    @apply border-neon-cyan/70 bg-neon-cyan/25 text-white;
+  }
+  .btn-violet {
+    @apply border-neon-violet/40 bg-neon-violet/15 text-[#c3b9ff];
+  }
+  .btn-violet:hover {
+    @apply border-neon-violet/70 bg-neon-violet/25 text-white;
+  }
+  .btn-danger {
+    @apply border-neon-rose/40 bg-neon-rose/10 text-[#ff8fa3];
+  }
+  .btn-danger:hover {
+    @apply border-neon-rose/70 bg-neon-rose/20 text-white;
+  }
+  .btn-ghost {
+    @apply border-transparent bg-transparent text-slate-400;
+  }
+  .btn-ghost:hover {
+    @apply bg-white/[0.05] text-slate-100;
+  }
+
+  .field {
+    @apply w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-[13px] text-slate-100 outline-none transition focus:border-neon-cyan/50 focus:ring-1 focus:ring-neon-cyan/30;
+  }
+
+  .label {
+    @apply mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-slate-500;
+  }
+
+  .scanline::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(180deg, transparent, rgba(34, 211, 238, 0.06), transparent);
+    height: 30%;
+    animation: scan 5.5s linear infinite;
+  }
+
+  .grid-bg {
+    background-image: linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 34px 34px;
+  }
+
+  .hairline {
+    @apply border-white/[0.06];
+  }
+}
+
+@keyframes scan {
+  0% {
+    transform: translateY(-120%);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(400%);
+    opacity: 0;
+  }
+}
+
+@keyframes dash {
+  to {
+    stroke-dashoffset: -1000;
+  }
+}
+
+.animate-dash {
+  animation: dash 12s linear infinite;
+}
+
+@keyframes float-slow {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+.animate-float-slow {
+  animation: float-slow 6s ease-in-out infinite;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+textarea.editor {
+  tab-size: 2;
+}
