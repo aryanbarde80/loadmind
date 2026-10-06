@@ -45,7 +45,7 @@ The server strips the `/proxy` prefix, then preserves the incoming method, path,
 
 The proxy registry is independent of the simulator's TypeScript registry. It implements Round Robin, Weighted Round Robin, Least Connections, Weighted Least Connections, IP Hash, weighted Random, Least Response Time, Consistent Hashing, and Autopilot. Autopilot is deterministic and explains its current choice from observed latency spread, in-flight load, and node weights; it is not a remote AI call.
 
-Health checks run every five seconds by default. A node is removed from routing after two consecutive failed checks and becomes eligible after a successful check. The default upstream request timeout is five seconds. There are no automatic retries: a failed request is reported to the caller and the metrics.
+Health checks run every five seconds by default. A node is removed from routing after two consecutive failed checks and becomes eligible after a successful check. Operators can adjust each node's weight from 1–10 and drain or resume it without restarting the process; draining only stops new selections, so in-flight requests finish normally. The default upstream request timeout is five seconds. There are no automatic retries: a failed request is reported to the caller and the metrics.
 
 ## API
 
@@ -54,6 +54,7 @@ Health checks run every five seconds by default. A node is removed from routing 
 | `GET` | `/api/health` | Process liveness |
 | `GET` | `/api/live-proxy/status` | Strategy, actual request counters, latency percentiles, upstream health, and up to 40 recent events |
 | `POST` | `/api/live-proxy/algorithm` | Set `{ "algorithm": "least-response-time" }` |
+| `PATCH` | `/api/live-proxy/upstreams/{id}` | Change `{ "weight": 4 }` and/or `{ "draining": true }` for one configured node |
 | `POST` | `/api/live-proxy/reset` | Reset proxy counters and recent events |
 | `ANY` | `/proxy/*` | Forward a request through the selected strategy |
 

@@ -74,6 +74,46 @@ paths:
                   algorithm: { type: string }
         '400': { description: Invalid JSON or unsupported algorithm }
         '401': { description: Missing or invalid operator authorization }
+  /api/live-proxy/upstreams/{id}:
+    patch:
+      summary: Change an upstream's routing weight or drain state
+      operationId: patchProxyUpstream
+      description: Weight changes are applied to weighted strategies immediately. Draining removes the upstream from future selections while existing requests finish.
+      security:
+        - operatorBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpstreamPatch'
+      responses:
+        '200':
+          description: Upstream updated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, upstream]
+                properties:
+                  ok: { const: true }
+                  upstream:
+                    type: object
+                    required: [id, name, weight, healthy, draining]
+                    properties:
+                      id: { type: string }
+                      name: { type: string }
+                      weight: { type: integer, minimum: 1, maximum: 10 }
+                      healthy: { type: boolean }
+                      draining: { type: boolean }
+        '400': { description: Invalid patch body }
+        '401': { description: Missing or invalid operator authorization }
+        '404': { description: Unknown upstream id }
   /api/live-proxy/reset:
     post:
       summary: Reset in-memory proxy metrics
@@ -130,6 +170,13 @@ components:
       scheme: bearer
       bearerFormat: opaque
   schemas:
+    UpstreamPatch:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        weight: { type: integer, minimum: 1, maximum: 10 }
+        draining: { type: boolean }
     ProxyStatus:
       type: object
       required: [service, uptimeSeconds, algorithm, algorithmName, effectiveAlgorithm, effectiveAlgorithmName, autopilotReason, adminAuthRequired, adminControlsAvailable, adminControlMode, metrics, upstreams, recentRequests]

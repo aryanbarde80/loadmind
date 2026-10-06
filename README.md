@@ -107,7 +107,7 @@ Example output:
 
 | Area | What it does |
 |---|---|
-| **Live HTTP proxy** | Optional real Node HTTP reverse-proxy data plane, three independently listening demo upstreams, selectable routing strategy, active health checks, timeout handling, measured p50/p95 latency, and a bounded request log that omits bodies and query strings. |
+| **Live HTTP proxy** | Optional real Node HTTP reverse-proxy data plane, three independently listening demo upstreams, selectable routing strategy, active health checks, live node weights and drain/resume controls, timeout handling, measured p50/p95 latency, and a bounded request log that omits bodies and query strings. |
 | **Live traffic map** | Canvas-rendered simulated request flow: users → internet → LoadMind → pool. Every dispatched request becomes an animated packet; successful packets are cyan, failed ones red. Up to 300 particles at 60 fps; the stream is sampled above that so the canvas stays legible. |
 | **Server cards** | Live CPU, memory, connections, latency, error rate, share of traffic, latency sparkline and chaos badges. Click to inspect; the canvas nodes are clickable too. |
 | **Algorithm control centre** | Eight cards showing what each algorithm *would do with the next request*, using the real selection code path. A decision matrix runs all eight against the same request so you can see them disagree. |
@@ -122,7 +122,7 @@ Example output:
 
 ## Live HTTP proxy mode
 
-The live data plane is optional and intentionally separate from `src/simulation/`. `npm run dev` starts a Node API/reverse proxy plus three independent local HTTP upstream services; the browser sends requests to `/proxy/*` through Vite's same-origin proxy. The Live Proxy view can send GET, slow, intentional-503, and POST-echo requests and displays the selected upstream, health, actual latency, and bounded request history.
+The live data plane is optional and intentionally separate from `src/simulation/`. `npm run dev` starts a Node API/reverse proxy plus three independent local HTTP upstream services; the browser sends requests to `/proxy/*` through Vite's same-origin proxy. The Live Proxy view can send GET, slow, intentional-503, and POST-echo requests; tune each upstream's weight or drain/resume it live; and inspect health, actual latency, and bounded request history.
 
 The Node routing registry implements the eight routing strategies plus deterministic, explainable Autopilot. `/api/live-proxy/status` returns live counters and p50/p95 from the most recent 500 requests; the event list retains at most 40 entries and omits request bodies and query strings. Health checks run every five seconds by default, and upstream failures are not automatically retried.
 
