@@ -224,6 +224,10 @@ await wait(5000);
 
 /* ---------------------------------------------- 10. real HTTP proxy view */
 {
+  await page.evaluate(() => {
+    const closeButton = [...document.querySelectorAll('button')].find((button) => button.title === 'Close');
+    closeButton?.click();
+  });
   await page.click('nav button[title^="Live Proxy"]');
   await wait(1400);
   const proxyView = await page.evaluate(() => document.body.innerText);

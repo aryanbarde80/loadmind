@@ -28,7 +28,10 @@ const page = await browser.newPage();
 page.on('console', (msg) => {
   const type = msg.type();
   const text = msg.text();
-  if (type === 'error' && !text.includes('favicon') && !text.includes('fonts.googleapis') && !text.includes('ERR_CONNECTION_REFUSED')) {
+  // Chromium reports expected non-2xx network responses in the console; the
+  // live-proxy step explicitly asserts the demo's intentional HTTP 503 below.
+  const intentionalDemoFailure = text.includes('503 (Service Unavailable)');
+  if (type === 'error' && !intentionalDemoFailure && !text.includes('favicon') && !text.includes('fonts.googleapis') && !text.includes('ERR_CONNECTION_REFUSED')) {
     errors.push(`console.error: ${text.slice(0, 300)}`);
   }
   if (type === 'warning' && /React|Warning:/.test(text) && !text.includes('width(0)') && !text.includes('height(0)')) {
