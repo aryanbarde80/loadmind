@@ -233,6 +233,7 @@ await wait(5000);
   const proxyView = await page.evaluate(() => document.body.innerText);
   check('live proxy is connected to its API', /REAL UPSTREAM TELEMETRY|connected/i.test(proxyView) && /EDGE-A/.test(proxyView));
   check('proxy controls and recent request log render', /Choose the real-request policy/.test(proxyView) && /Most recent proxy requests/.test(proxyView));
+  check('upstream weight and drain controls render', /Capacity weight/i.test(proxyView) && /Drain/i.test(proxyView));
   await page.screenshot({ path: path.join(OUT, '22-live-proxy.png'), fullPage: true });
 
   for (const [w, h] of [[1280, 800], [900, 800]]) {

@@ -119,6 +119,7 @@ export function LiveProxyView() {
   const [refreshing, setRefreshing] = useState(false);
   const [algorithmBusy, setAlgorithmBusy] = useState(false);
   const [resetBusy, setResetBusy] = useState(false);
+  const [upstreamBusyId, setUpstreamBusyId] = useState<string | null>(null);
   const [requestBusy, setRequestBusy] = useState(false);
   const [adminToken, setAdminToken] = useState('');
   const [controlError, setControlError] = useState<string | null>(null);
@@ -160,7 +161,7 @@ export function LiveProxyView() {
   );
   const route = ROUTES.find((item) => item.value === selectedRoute) ?? ROUTES[0];
   const apiOnline = Boolean(status && !apiError);
-  const canControl = Boolean(status?.adminControlsAvailable) && apiOnline && !algorithmBusy && !resetBusy;
+  const canControl = Boolean(status?.adminControlsAvailable) && apiOnline && !algorithmBusy && !resetBusy && !upstreamBusyId;
   const successRate = status?.metrics.completedRequests
     ? status.metrics.successfulRequests / status.metrics.completedRequests * 100
     : 100;
@@ -215,6 +216,24 @@ export function LiveProxyView() {
       setControlError(error instanceof Error ? error.message : 'Could not reset metrics.');
     } finally {
       setResetBusy(false);
+    }
+  };
+
+  const updateUpstream = async (id: string, patch: { weight?: number; draining?: boolean }) => {
+    setUpstreamBusyId(id);
+    setControlError(null);
+    try {
+      const response = await fetch(`/api/live-proxy/upstreams/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify(patch),
+      });
+      if (!response.ok) throw new Error(await readError(response));
+      await refresh();
+    } catch (error) {
+      setControlError(error instanceof Error ? error.message : 'Could not update the upstream.');
+    } finally {
+      setUpstreamBusyId(null);
     }
   };
 
@@ -314,7 +333,7 @@ export function LiveProxyView() {
             {status?.upstreams.length ? (
               <div className="grid gap-2.5 sm:grid-cols-2 2xl:grid-cols-3">
                 {status.upstreams.map((upstream, index) => {
-                  const badgeStatus = !upstream.healthy ? 'down' : upstream.consecutiveHealthFailures > 0 ? 'warning' : 'healthy';
+                  const badgeStatus = !upstream.healthy ? 'down' : upstream.draining || upstream.consecutiveHealthFailures > 0 ? 'warning' : 'healthy';
                   const accent = index % 3 === 0 ? 'text-neon-cyan' : index % 3 === 1 ? 'text-[#c3b9ff]' : 'text-neon-mint';
                   return (
                     <article key={upstream.id} className="panel-flat min-w-0 p-3.5 transition hover:border-white/15">
@@ -339,6 +358,32 @@ export function LiveProxyView() {
                         <span className="truncate">{upstream.totalRequests.toLocaleString()} requests routed</span>
                         <span className="shrink-0">{upstream.lastStatusCode ? `last ${upstream.lastStatusCode}` : 'awaiting traffic'}</span>
                       </div>
+                      <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2 border-t border-white/[0.055] pt-3">
+                        <label className="min-w-0">
+                          <span className="label">Capacity weight</span>
+                          <select
+                            className="field h-8 px-2 py-1 font-mono text-[10px]"
+                            value={upstream.weight}
+                            disabled={!canControl}
+                            aria-label={`Weight for ${upstream.name}`}
+                            onChange={(event) => void updateUpstream(upstream.id, { weight: Number(event.target.value) })}
+                          >
+                            {Array.from({ length: 10 }, (_, weight) => weight + 1).map((weight) => (
+                              <option key={weight} value={weight}>{weight}× capacity</option>
+                            ))}
+                          </select>
+                        </label>
+                        <button
+                          type="button"
+                          className={clsx('btn h-8 px-2.5 text-[10px]', upstream.draining ? 'border-neon-mint/25 text-neon-mint' : 'border-neon-amber/25 text-neon-amber')}
+                          disabled={!canControl}
+                          aria-label={`${upstream.draining ? 'Resume' : 'Drain'} ${upstream.name}`}
+                          onClick={() => void updateUpstream(upstream.id, { draining: !upstream.draining })}
+                        >
+                          {upstreamBusyId === upstream.id ? 'saving…' : upstream.draining ? 'Resume' : 'Drain'}
+                        </button>
+                      </div>
+                      {upstream.draining && <p className="mt-2 font-mono text-[9px] text-neon-amber">Draining · existing requests finish; new traffic is routed elsewhere.</p>}
                     </article>
                   );
                 })}

@@ -63,15 +63,30 @@ const step = async (name, fn) => {
 
 /** Click the first element whose trimmed text matches. */
 async function clickText(selector, text) {
-  const handle = await page.evaluateHandle(
-    (sel, txt) => [...document.querySelectorAll(sel)].find((el) => (el.textContent || '').trim().includes(txt)) ?? null,
-    selector,
-    text,
-  );
-  const element = handle.asElement();
-  if (!element) throw new Error(`No ${selector} containing "${text}"`);
-  await element.click();
-  return element;
+  let lastError;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const handle = await page.evaluateHandle(
+      (sel, txt) => [...document.querySelectorAll(sel)].find((el) => (el.textContent || '').trim().includes(txt)) ?? null,
+      selector,
+      text,
+    );
+    const element = handle.asElement();
+    if (!element) {
+      await handle.dispose();
+      throw new Error(`No ${selector} containing "${text}"`);
+    }
+    try {
+      await element.evaluate((target) => target.scrollIntoView({ block: 'center', inline: 'center' }));
+      await element.click();
+      await handle.dispose();
+      return;
+    } catch (error) {
+      lastError = error;
+      await handle.dispose();
+      await wait(120);
+    }
+  }
+  throw lastError;
 }
 
 console.log('\n=== LoadMind browser E2E ===\n');
@@ -216,6 +231,41 @@ await step('real HTTP proxy routes requests and records live metrics', async () 
     return (await response.json()).algorithm === 'weighted-round-robin';
   }, { timeout: 10000 });
 
+  await page.waitForFunction(() => {
+    const control = document.querySelector('select[aria-label="Weight for EDGE-A"]');
+    return control && !control.disabled;
+  }, { timeout: 10000 });
+  await page.select('select[aria-label="Weight for EDGE-A"]', '5');
+  await page.waitForFunction(async () => {
+    const status = await (await fetch('/api/live-proxy/status')).json();
+    return status.upstreams.find((upstream) => upstream.id === 'edge-a')?.weight === 5;
+  }, { timeout: 10000 });
+  await page.waitForFunction(() => {
+    const control = document.querySelector('button[aria-label="Drain EDGE-A"]');
+    return control && !control.disabled;
+  }, { timeout: 10000 });
+
+  await page.click('button[aria-label="Drain EDGE-A"]');
+  await page.waitForFunction(async () => {
+    const status = await (await fetch('/api/live-proxy/status')).json();
+    return status.upstreams.find((upstream) => upstream.id === 'edge-a')?.draining === true;
+  }, { timeout: 10000 });
+  await clickText('button', 'Send real request');
+  await page.waitForFunction(async () => {
+    const status = await (await fetch('/api/live-proxy/status')).json();
+    return status.metrics.totalRequests >= 2 && status.metrics.completedRequests >= 2 && status.recentRequests[0]?.upstreamId !== 'edge-a';
+  }, { timeout: 12000 });
+
+  await page.waitForFunction(() => {
+    const control = document.querySelector('button[aria-label="Resume EDGE-A"]');
+    return control && !control.disabled;
+  }, { timeout: 10000 });
+  await page.click('button[aria-label="Resume EDGE-A"]');
+  await page.waitForFunction(async () => {
+    const status = await (await fetch('/api/live-proxy/status')).json();
+    return status.upstreams.find((upstream) => upstream.id === 'edge-a')?.draining === false;
+  }, { timeout: 10000 });
+
   await page.select('select[aria-label="Demo proxy route"]', '/api/fail');
   await clickText('button', 'Send real request');
   await page.waitForFunction(() => document.body.innerText.includes('HTTP 503'), { timeout: 12000 });
@@ -225,7 +275,7 @@ await step('real HTTP proxy routes requests and records live metrics', async () 
   await page.waitForFunction(() => document.body.innerText.includes('hello from LoadMind'), { timeout: 12000 });
 
   const metrics = await page.evaluate(async () => (await fetch('/api/live-proxy/status')).json());
-  if (metrics.metrics.totalRequests < 3 || metrics.metrics.failedRequests < 1) {
+  if (metrics.metrics.totalRequests < 4 || metrics.metrics.failedRequests < 1) {
     throw new Error(`Proxy metrics were not updated: ${JSON.stringify(metrics.metrics)}`);
   }
   await page.screenshot({ path: path.join(OUT, '18-live-proxy-requests.png'), fullPage: true });
@@ -242,6 +292,8 @@ await step('ask LoadMind AI', async () => {
   await page.keyboard.press('Enter');
   await wait(2200);
   await page.screenshot({ path: path.join(OUT, '14-chat.png') });
+  await page.click('button[title="Close"]');
+  await wait(250);
 });
 
 await step('traffic controls (spike + burst)', async () => {
