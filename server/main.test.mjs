@@ -96,6 +96,62 @@ test('operator routes are protected and accept the configured bearer token', asy
   assert.equal((await allowed.json()).algorithm, 'least-response-time');
 });
 
+test('operator can tune upstream weight and drain or resume a node', async () => {
+  const upstreamUrl = `${baseUrl}/api/live-proxy/upstreams/test-a`;
+  const tokenHeaders = { authorization: `Bearer ${adminToken}`, 'content-type': 'application/json' };
+
+  const denied = await fetch(upstreamUrl, {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ weight: 4 }),
+  });
+  assert.equal(denied.status, 401);
+
+  const invalid = await fetch(upstreamUrl, {
+    method: 'PATCH',
+    headers: tokenHeaders,
+    body: JSON.stringify({ weight: 11 }),
+  });
+  assert.equal(invalid.status, 400);
+
+  const unknown = await fetch(`${baseUrl}/api/live-proxy/upstreams/missing`, {
+    method: 'PATCH',
+    headers: tokenHeaders,
+    body: JSON.stringify({ draining: true }),
+  });
+  assert.equal(unknown.status, 404);
+
+  const weighted = await fetch(upstreamUrl, {
+    method: 'PATCH',
+    headers: tokenHeaders,
+    body: JSON.stringify({ weight: 4 }),
+  });
+  assert.equal(weighted.status, 200);
+  assert.equal((await weighted.json()).upstream.weight, 4);
+
+  const drained = await fetch(upstreamUrl, {
+    method: 'PATCH',
+    headers: tokenHeaders,
+    body: JSON.stringify({ draining: true }),
+  });
+  assert.equal(drained.status, 200);
+  assert.equal((await drained.json()).upstream.draining, true);
+  const status = await (await fetch(`${baseUrl}/api/live-proxy/status`)).json();
+  assert.equal(status.upstreams.find((upstream) => upstream.id === 'test-a').draining, true);
+
+  const routed = await fetch(`${baseUrl}/proxy/api/info`);
+  assert.equal(routed.status, 200);
+  assert.equal((await routed.json()).upstream, 'test-b', 'drained nodes stop receiving new requests');
+
+  const resumed = await fetch(upstreamUrl, {
+    method: 'PATCH',
+    headers: tokenHeaders,
+    body: JSON.stringify({ draining: false }),
+  });
+  assert.equal(resumed.status, 200);
+  assert.equal((await resumed.json()).upstream.draining, false);
+});
+
 test('same origin can make a proxied request and reset metrics with authorization', async () => {
   const response = await fetch(`${baseUrl}/proxy/api/info`);
   assert.equal(response.status, 200);

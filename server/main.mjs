@@ -59,6 +59,11 @@ function hasValidBearer(request, expected) {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
+function hasOperatorAccess(request, adminToken, production) {
+  if (adminToken) return hasValidBearer(request, adminToken);
+  return !production || isLoopback(request.socket.remoteAddress);
+}
+
 async function serveStatic(request, response, root) {
   let pathname;
   try {
@@ -158,8 +163,7 @@ export async function createRuntime({
       return;
     }
     if (pathname === '/api/live-proxy/algorithm' && request.method === 'POST') {
-      const localDevelopmentControl = !production || isLoopback(request.socket.remoteAddress);
-      if (adminToken ? !hasValidBearer(request, adminToken) : !localDevelopmentControl) {
+      if (!hasOperatorAccess(request, adminToken, production)) {
         sendJson(response, 401, { error: 'Operator authentication is required to change proxy settings.' });
         return;
       }
@@ -173,13 +177,32 @@ export async function createRuntime({
       return;
     }
     if (pathname === '/api/live-proxy/reset' && request.method === 'POST') {
-      const localDevelopmentControl = !production || isLoopback(request.socket.remoteAddress);
-      if (adminToken ? !hasValidBearer(request, adminToken) : !localDevelopmentControl) {
+      if (!hasOperatorAccess(request, adminToken, production)) {
         sendJson(response, 401, { error: 'Operator authentication is required to reset proxy metrics.' });
         return;
       }
       proxy.resetMetrics();
       sendJson(response, 200, { ok: true });
+      return;
+    }
+    const upstreamControl = /^\/api\/live-proxy\/upstreams\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})$/.exec(pathname);
+    if (upstreamControl) {
+      if (request.method !== 'PATCH') {
+        response.setHeader('allow', 'PATCH');
+        sendJson(response, 405, { error: 'Method not allowed.' });
+        return;
+      }
+      if (!hasOperatorAccess(request, adminToken, production)) {
+        sendJson(response, 401, { error: 'Operator authentication is required to change upstream settings.' });
+        return;
+      }
+      try {
+        const body = await readJson(request);
+        const upstream = proxy.updateUpstream(upstreamControl[1], body);
+        sendJson(response, 200, { ok: true, upstream });
+      } catch (error) {
+        sendJson(response, error.statusCode || 400, { error: error.message });
+      }
       return;
     }
     if (pathname === '/api/live-proxy/status' || pathname === '/api/live-proxy/algorithm' || pathname === '/api/live-proxy/reset') {

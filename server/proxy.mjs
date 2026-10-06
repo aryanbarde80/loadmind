@@ -328,6 +328,28 @@ export function createLoadBalancer({
     recentRequests: [...recentRequests],
   });
 
+  const updateUpstream = (id, patch) => {
+    const node = nodes.find((candidate) => candidate.id === id);
+    if (!node) throw Object.assign(new Error(`Unknown upstream: ${id}`), { statusCode: 404 });
+    if (!patch || typeof patch !== 'object' || Array.isArray(patch)) {
+      throw Object.assign(new Error('Expected an object containing weight and/or draining.'), { statusCode: 400 });
+    }
+    const keys = Object.keys(patch);
+    if (keys.length === 0 || keys.some((key) => key !== 'weight' && key !== 'draining')) {
+      throw Object.assign(new Error('Only weight and draining can be changed.'), { statusCode: 400 });
+    }
+    if ('weight' in patch && (!Number.isInteger(patch.weight) || patch.weight < 1 || patch.weight > 10)) {
+      throw Object.assign(new Error('weight must be an integer from 1 to 10.'), { statusCode: 400 });
+    }
+    if ('draining' in patch && typeof patch.draining !== 'boolean') {
+      throw Object.assign(new Error('draining must be a boolean.'), { statusCode: 400 });
+    }
+
+    if ('weight' in patch) node.weight = patch.weight;
+    if ('draining' in patch) node.draining = patch.draining;
+    return { id: node.id, name: node.name, weight: node.weight, healthy: node.healthy, draining: node.draining };
+  };
+
   const resetMetrics = () => {
     metrics.totalRequests = 0;
     metrics.completedRequests = 0;
@@ -350,6 +372,7 @@ export function createLoadBalancer({
     handleRequest,
     getStatus,
     setAlgorithm: (next) => router.setAlgorithm(next),
+    updateUpstream,
     checkHealth,
     resetMetrics,
     close: () => {
