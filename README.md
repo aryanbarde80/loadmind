@@ -108,7 +108,7 @@ Example output:
 | **Battle mode** | Replays a seeded scenario (2 000–40 000 requests) through 2–4 algorithms in a web worker. Identical traffic for everyone: same seed, same arrivals, same pool, same chaos. Winner is decided by a composite score (latency 30 %, p95 22 %, errors 24 %, throughput 12 %, fairness 6 %, efficiency 6 %). |
 | **Chaos mode** | Kill/revive nodes, inject latency and errors, remove capacity, run a chaos monkey with auto-recovery, multiply traffic. Then run a "reaction test" that replays your exact damage against four algorithms. |
 | **Playground** | Write `selectServer(servers, request, state)` in a syntax-highlighted editor with line numbers and tab handling. Compiled with `new Function`, smoke-tested against a synthetic pool (so errors surface at compile time), then benchmarked against Round Robin and Least Response Time, saved to localStorage and deployable to the live pool. |
-| **Performance lab** | Every battle, saved live session and playground benchmark is persisted locally. Leaderboard, latency trend, side-by-side comparison of up to 4 runs, CSV export. |
+| **Performance lab** | Every battle, saved live session and playground benchmark is persisted locally. Leaderboard, latency trend, side-by-side comparison of up to 4 runs, and CSV export with spreadsheet-formula protection. |
 | **LoadMind AI** | A floating assistant that answers from live state: distribution skew, autopilot reasoning, capacity projections with queueing math, experiment comparison. If it has no data it says so instead of inventing an answer. |
 | **Architecture view** | The full request lifecycle as clickable components, each with live stats, responsibilities and the module that implements it. |
 
@@ -175,8 +175,8 @@ when you do not plan to run them.
 
 `npm test` covers request dispatch and completion, all eight algorithms, distinct routing distributions,
 chaos degradation, autopilot scoring and switching, battle determinism, custom-algorithm compilation,
-traffic patterns, and assistant answers. The visual suite samples canvas pixels to confirm the traffic map
-is drawing and checks responsive widths for horizontal overflow.
+traffic patterns, assistant answers, and CSV escaping/formula protection. The visual suite samples canvas
+pixels to confirm the traffic map is drawing and checks responsive widths for horizontal overflow.
 
 GitHub Actions audits production dependencies, runs `npm run validate` and both browser suites on pushes,
 pull requests to `main`, and a weekly schedule, then uploads browser screenshots as a short-lived workflow

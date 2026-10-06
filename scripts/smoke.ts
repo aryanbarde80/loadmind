@@ -8,7 +8,8 @@ import { runBattle, runHeadless } from '../src/simulation/headless';
 import { compileCustomAlgorithm } from '../src/algorithms/custom';
 import { BUILTIN_ALGORITHMS } from '../src/algorithms/registry';
 import { SCENARIO_PRESETS } from '../src/simulation/scenarios';
-import type { AlgorithmId } from '../src/types';
+import { serializeRunsCsv } from '../src/analytics/exportCsv';
+import type { AlgorithmId, RunRecord } from '../src/types';
 
 let failures = 0;
 function check(name: string, condition: boolean, detail = ''): void {
@@ -266,6 +267,43 @@ console.log('\n=== LoadMind smoke test ===\n');
     const ok = answer.text.length > 30;
     check(`Q: ${question.slice(0, 44).padEnd(46)}`, ok, `${answer.text.length} chars`);
   }
+}
+
+/* ------------------------------------------- 10. safe Performance Lab CSV */
+{
+  console.log('\n10. Performance Lab CSV export handles untrusted text');
+  const run: RunRecord = {
+    id: 'custom-export-test',
+    kind: 'custom',
+    createdAt: 1_700_000_000_000,
+    label: 'CSV export fixture',
+    algorithm: 'custom',
+    algorithmName: '=HYPERLINK("https://example.test","open")',
+    pattern: 'normal',
+    baseRps: 300,
+    serverCount: 5,
+    requests: 1_000,
+    avgLatencyMs: 42,
+    p95Ms: 85,
+    p99Ms: 120,
+    throughput: 295,
+    errorRate: 0.002,
+    fairness: 0.96,
+    cpu: 48,
+    score: 87.4,
+    chaosSummary: 'note, with "quotes"\r\nsecond line',
+  };
+  const csv = serializeRunsCsv([run]);
+  check('UTF-8 BOM and quoted header', csv.startsWith('\uFEFF"id","kind","createdAt","algorithm"'));
+  check(
+    'formula-like custom name is neutralized',
+    csv.includes(`"'=HYPERLINK(""https://example.test"",""open"")"`),
+  );
+  check(
+    'quotes, commas, and newlines stay in an escaped cell',
+    csv.includes('"note, with ""quotes""\r\nsecond line"'),
+  );
+  check('CSV uses CRLF row endings', csv.endsWith('\r\n'));
 }
 
 console.log(`\n=== ${failures === 0 ? 'ALL CHECKS PASSED' : `${failures} CHECK(S) FAILED`} ===\n`);

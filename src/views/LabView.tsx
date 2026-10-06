@@ -16,6 +16,7 @@ import { clsx } from '@/lib/clsx';
 import { useApp } from '@/state/store';
 import { Panel, EmptyState, Segmented, Meter } from '@/components/ui/primitives';
 import { aggregateByAlgorithm, compareRuns, recentRuns } from '@/analytics/history';
+import { serializeRunsCsv } from '@/analytics/exportCsv';
 import { fmtMs, fmtPct, relativeTime, clockTime } from '@/lib/format';
 import type { RunRecord, RunRecordKind } from '@/types';
 
@@ -47,38 +48,15 @@ export function LabView() {
   );
 
   const exportCsv = () => {
-    const header =
-      'id,kind,createdAt,algorithm,pattern,servers,baseRps,requests,avgLatencyMs,p95Ms,p99Ms,throughput,errorRate,fairness,cpu,score,chaos\n';
-    const body = runs
-      .map((run) =>
-        [
-          run.id,
-          run.kind,
-          new Date(run.createdAt).toISOString(),
-          run.algorithmName,
-          run.pattern,
-          run.serverCount,
-          run.baseRps,
-          run.requests,
-          run.avgLatencyMs.toFixed(2),
-          run.p95Ms.toFixed(2),
-          run.p99Ms.toFixed(2),
-          run.throughput.toFixed(2),
-          (run.errorRate * 100).toFixed(3),
-          run.fairness.toFixed(4),
-          run.cpu.toFixed(2),
-          run.score.toFixed(2),
-          `"${run.chaosSummary}"`,
-        ].join(','),
-      )
-      .join('\n');
-    const blob = new Blob([header + body], { type: 'text/csv' });
+    const blob = new Blob([serializeRunsCsv(runs)], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
     anchor.download = `loadmind-runs-${Date.now()}.csv`;
+    document.body.appendChild(anchor);
     anchor.click();
-    URL.revokeObjectURL(url);
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
   };
 
   return (
